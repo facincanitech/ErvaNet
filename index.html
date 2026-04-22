@@ -278,6 +278,7 @@
     const _u = (s) => s.split('').reverse().join('');
     const CFG = {
       DISCORD_CLIENT_ID: '1495818274594754711',
+      DB_NAME: 'ErvaNetDB',
       get REDIRECT_URI() { return window.location.origin + window.location.pathname },
       BASE_COOLDOWN_MS: 5 * 60 * 1000,
       CHUNK_SIZE: 800,
@@ -364,7 +365,7 @@
         const cd = cooldownMs();
         if (elapsed >= cd) {
           if (!_cdNotified) {
-            Notif.send('⛏️ Mineração Pronta!', 'O cooldown acabou. Hora de minerar mais grãos!');
+            Notif.send('⛏️ Cultivo Pronto!', 'O cooldown acabou. Hora de cultivar mais buds!');
             AudioEngine.play('ready');
             _cdNotified = true;
           }
@@ -382,15 +383,18 @@
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkdXRrenNhcnp0eXNxcXJnY21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MTk0MTAsImV4cCI6MjA5MjM5NTQxMH0.t0aplA-cGbD4qb7uxTzKic1oZoGTWhHmKfLFmimxEZI';
     const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-    async function sbUpsertGrain(grain) {
-      const row = {
-        id: grain.id, rarity: grain.rarity, hash: grain.hash, nonce: grain.nonce,
-        generated_at: grain.generated_at, discord_user: grain.discord_user, discord_id: grain.discord_id,
-        network_size_at_generation: grain.network_size_at_generation, owner: grain.owner,
-        signature: grain.signature, transfer_history: grain.transfer_history || []
-      };
-      const { error } = await sb.from('grains').upsert(row);
-      if (error) console.warn('sb grain upsert:', error.message);
+    async function sbUpsertGrain(bud) {
+      try {
+        const { error } = await sb.from('grains').upsert({
+          id: bud.id, rarity: bud.rarity, hash: bud.hash, nonce: bud.nonce,
+          generated_at: bud.generated_at, discord_user: bud.discord_user,
+          discord_id: bud.discord_id, network_size_at_generation: bud.network_size_at_generation,
+          owner: bud.owner, signature: bud.signature,
+          transfer_history: bud.transfer_history,
+          reward_from_lavoura: bud.reward_from_lavoura
+        });
+        if (error) console.warn('Erro Supabase Upsert:', error.message);
+      } catch (e) { }
     }
 
     async function sbUpsertUser(user) {
@@ -414,8 +418,8 @@
     // RARIDADES
     // ═══════════════════════════════════════════════════════
     const RARITY = {
-      brass: { key: 'brass', label: 'Soltinho', emoji: '🌿', color: '#CD7F32', zeros: 1, prefix: 'S' },
-      copper: { key: 'copper', label: 'Pren', emoji: '📦', color: '#B87333', zeros: 2, prefix: 'P' },
+      brass: { key: 'brass', label: 'Prensado', emoji: '📦', color: '#CD7F32', zeros: 1, prefix: 'S' },
+      copper: { key: 'copper', label: 'Soltinho', emoji: '🌿', color: '#B87333', zeros: 2, prefix: 'P' },
       silver: { key: 'silver', label: 'Skunk', emoji: '🦨', color: '#C0C0C0', zeros: 3, prefix: 'K' },
       gold: { key: 'gold', label: 'Kush', emoji: '🔥', color: '#FFD700', zeros: 4, prefix: 'G' },
       diamond: { key: 'diamond', label: 'Hash', emoji: '🍯', color: '#00FFFF', zeros: 5, prefix: 'H' },
@@ -429,7 +433,7 @@
     // ═══════════════════════════════════════════════════════
     // DATABASE (Dexie / IndexedDB)
     // ═══════════════════════════════════════════════════════
-    const db = new Dexie('GraoNet_v1');
+    const db = new Dexie(CFG.DB_NAME);
     db.version(1).stores({
       grains: '++localId, id, rarity, owner, generated_at',
       counters: 'rarity',
@@ -492,7 +496,7 @@
     }
 
     // ═══════════════════════════════════════════════════════
-    // IDs DOS GRÃOS
+    // IDs DOS BUDS
     // ═══════════════════════════════════════════════════════
     async function nextId(rarity) {
       const pfx = RARITY[rarity].prefix;
@@ -513,11 +517,15 @@
     // ═══════════════════════════════════════════════════════
     // ASSINATURA
     // ═══════════════════════════════════════════════════════
-    async function signGrain(g) {
-      return sha256(`${g.id}${g.hash}${g.discord_id}${g.generated_at}`);
+    async function signGrain(bud) {
+      const data = `${bud.id}|${bud.rarity}|${bud.hash}|${bud.nonce}|${bud.generated_at}|${bud.discord_id}`;
+      return sha256(data + 'ervanet_secret_salt');
     }
-    async function verifyGrain(g) {
-      return g.signature === await signGrain(g);
+    async function verifyGrain(bud) {
+      if (!bud.id || !bud.signature) return false;
+      const data = `${bud.id}|${bud.rarity}|${bud.hash}|${bud.nonce}|${bud.generated_at}|${bud.discord_id}`;
+      const expected = await sha256(data + 'ervanet_secret_salt');
+      return bud.signature === expected;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -628,7 +636,7 @@
     async function finishMining(hash, rarity, nonce) {
       const id = await nextId(rarity);
       const user = S.user;
-      const grain = {
+      const bud = {
         id, rarity, hash, nonce,
         generated_at: Date.now(),
         discord_user: user.global_name || user.username || user.id,
@@ -637,19 +645,19 @@
         owner: user.id,
         transfer_history: []
       };
-      grain.signature = await signGrain(grain);
-      await db.grains.add(grain);
+      bud.signature = await signGrain(bud);
+      await db.grains.add(bud);
       const now = Date.now();
       await db.settings.put({ key: 'lastMine', value: now });
-      sbUpsertGrain(grain);
+      sbUpsertGrain(bud);
       sb.from('users').update({ last_mine: now }).eq('discord_id', user.id).then(() => { });
-      addGrainToLavoura(grain);
+      addGrainToLavoura(bud);
 
       S.mining = false;
       S.miningProgress = 100;
       spawnParticles(rarity);
-      broadcastGrain(grain);
-      sendDiscordWebhook(grain);
+      broadcastGrain(bud);
+      sendDiscordWebhook(bud);
       toast(`🎉 ${id} cultivado! (${RARITY[rarity].label})`, 'success', 5000);
       setTimeout(() => { S.miningProgress = 0; render() }, 2500);
       render();
@@ -717,7 +725,7 @@
         toast(`Bem-vindo, ${user.global_name || user.username}!`, 'success');
         sbUpsertUser(user);
         updateNetworkSize();
-        await syncFromSupabase(user.id); // restaura grãos do servidor primeiro
+        await syncFromSupabase(user.id); // restaura Ervas do servidor primeiro
         syncLocalGrains(user.id);        // depois sobe os locais que faltam
         return true;
       } catch (e) {
@@ -734,54 +742,61 @@
     }
 
     // ═══════════════════════════════════════════════════════
-    // TRANSFERÊNCIA P2P
+    // ENVIO P2P
     // ═══════════════════════════════════════════════════════
-    async function generateTransferPkg(grainId, targetId) {
-      const g = await db.grains.where('id').equals(grainId).first();
-      if (!g) { toast('Grão não encontrado', 'error'); return null }
+    async function generateTransferPkg(budId, targetId) {
+      const g = await db.grains.where('id').equals(budId).first();
+      if (!g) { toast('Bud não encontrado', 'error'); return null }
       if (g.owner !== S.user.id) { toast('Você não é o dono', 'error'); return null }
-
+      
       const pkg = {
-        type: 'graonet_transfer', version: '1.0',
-        grain: { ...g },
-        from: S.user.id,
-        from_username: g.discord_user,
-        to: targetId,
-        timestamp: Date.now(),
-        nonce: crypto.randomUUID()
+        type: 'ervanet_transfer',
+        version: '2.0',
+        bud: g,
+        from_id: S.user.id,
+        from_name: S.user.global_name || S.user.username,
+        to_id: targetId, // 'ANYONE' ou ID do Discord
+        timestamp: Date.now()
       };
-      const raw = `${g.id}:${pkg.from}:${pkg.to}:${pkg.timestamp}:${pkg.nonce}`;
-      pkg.sig = await sha256(raw);
-      return JSON.stringify(pkg, null, 2);
+      // Assinatura do pacote para evitar adulteração
+      const check = await sha256(JSON.stringify(g) + pkg.from_id + pkg.to_id + pkg.timestamp + 'ervanet_pkg_salt');
+      pkg.sig = check;
+      return JSON.stringify(pkg);
     }
 
-    async function receivePkg(json) {
-      let pkg;
-      try { pkg = JSON.parse(json) }
-      catch (e) { toast('JSON inválido', 'error'); return false }
-      if (pkg.type !== 'graonet_transfer') { toast('Tipo inválido', 'error'); return false }
-      if (!S.user || (pkg.to !== S.user.id && pkg.to !== 'ANYONE')) { toast('Este pacote não é para você', 'error'); return false }
+    async function receivePkg(str) {
+      try {
+        const pkg = JSON.parse(str);
+        if (pkg.type !== 'ervanet_transfer') throw new Error('Pacote inválido ou de outro app');
+        if (pkg.to_id !== 'ANYONE' && pkg.to_id !== S.user.id) throw new Error('Este pacote não é para você');
+        
+        const g = pkg.bud;
+        if (!await verifyGrain(g)) throw new Error('Assinatura do Bud inválida');
+        
+        const check = await sha256(JSON.stringify(g) + pkg.from_id + pkg.to_id + pkg.timestamp + 'ervanet_pkg_salt');
+        if (pkg.sig !== check) throw new Error('Assinatura do pacote corrompida');
 
-      const raw = `${pkg.grain.id}:${pkg.from}:${pkg.to}:${pkg.timestamp}:${pkg.nonce}`;
-      const exp = await sha256(raw);
-      if (pkg.sig !== exp) { toast('Assinatura inválida!', 'error'); return false }
+        const existing = await db.grains.where('id').equals(g.id).first();
+        if (existing && !['__exported__','__transferred__','__burned__'].includes(existing.owner)) {
+          if (existing.owner === S.user.id) throw new Error('Você já possui este Bud');
+          throw new Error('Bud já registrado localmente');
+        }
 
-      const existing = await db.grains.where('id').equals(pkg.grain.id).first();
-      const updated = {
-        ...pkg.grain,
-        owner: S.user.id,
-        transfer_history: [...(pkg.grain.transfer_history || []), {
-          from: pkg.from_username, to: S.user.id, timestamp: pkg.timestamp
-        }]
-      };
-      if (existing) { await db.grains.where('id').equals(pkg.grain.id).modify(updated) }
-      else { await db.grains.add(updated) }
+        const hist = g.transfer_history || [];
+        hist.push({ from: pkg.from_name, to: S.user.global_name || S.user.username, timestamp: Date.now() });
+        
+        const newG = { ...g, owner: S.user.id, transfer_history: hist };
+        await db.grains.put(newG);
+        await sbUpsertGrain(newG);
+        
+        await sb.from('transfers').insert({
+          grain_id: g.id, from_user: pkg.from_id, to_user: S.user.id, timestamp: Date.now()
+        });
 
-      await db.transfers.add({ grainId: pkg.grain.id, from_user: pkg.from, to_user: S.user.id, timestamp: pkg.timestamp });
-      sbUpsertGrain(updated); // sincroniza novo dono no Supabase
-      toast(`${pkg.grain.id} recebido de ${pkg.from_username}!`, 'success', 5000);
-      render();
-      return true;
+        toast(`✅ Bud ${g.id} recebido!`, 'success');
+        render();
+        return true;
+      } catch (e) { toast(e.message, 'error'); return false; }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -822,33 +837,19 @@
           if (!loc || c.count > loc.count) await db.counters.put(c);
         }
       }
-      if (d.type === 'new_grain') {
-        S.networkSize = Math.max(S.networkSize, d.net || 1);
+      if (d.type === 'new_bud') {
         const r = RARITY[d.rarity];
-        const isRare = ['gold', 'diamond', 'uranium', 'opal', 'bismuth', 'niobium'].includes(d.rarity);
-        if (isRare && d.user && d.id) {
+        if (['gold', 'diamond', 'uranium', 'opal', 'bismuth', 'niobium'].includes(d.rarity)) {
           toast(`🔥 DROP GLOBAL: @${d.user} acabou de achar um ${r.emoji} ${d.id}!`, 'warning', 8000);
-          const flash = document.createElement('div');
-          flash.className = 'fixed inset-0 pointer-events-none z-[100] opacity-20';
-          flash.style.background = r.color;
-          flash.style.animation = 'fadeOut 1s forwards';
-          document.body.appendChild(flash);
-          setTimeout(() => flash.remove(), 1000);
+          AudioEngine.play('rare');
         }
       }
     }
 
-    function broadcastGrain(g) {
-      for (const [, c] of S.peers) {
-        try { 
-          c.send({ 
-            type: 'new_grain', 
-            rarity: g.rarity, 
-            user: g.discord_user,
-            id: g.id,
-            net: S.networkSize 
-          }) 
-        } catch (e) { }
+    function broadcastGrain(bud) {
+      if (window._conns) {
+        const data = { type: 'new_bud', id: bud.id, rarity: bud.rarity, user: bud.discord_user };
+        Object.values(window._conns).forEach(c => c.send(data));
       }
     }
     function updateNetSize() { S.networkSize = Math.max(1, S.peers.size + 1) }
@@ -892,18 +893,16 @@
       } catch (e) { }
     }
 
-    async function addGrainToLavoura(grain) {
-      if (!S.lavoura || !S.user) return;
+    async function addGrainToLavoura(bud) {
+      if (!S.lavoura) return;
       try {
-        const { data } = await sb.rpc('add_grain_to_lavoura', {
+        const { data, error } = await sb.rpc('add_grain_to_lavoura', {
           p_lavoura_id: S.lavoura.id,
           p_discord_id: S.user.id,
-          p_discord_user: grain.discord_user
+          p_discord_user: S.user.global_name || S.user.username
         });
-        if (data && !data.error) {
-          S.lavoura.grains_count = data.count;
-          S.myContrib = (S.myContrib || 0) + 1;
-          if (data.full) await handleHarvest();
+        if (data && data.full) {
+          await sb.rpc('harvest_lavoura', { p_lavoura_id: S.lavoura.id });
         }
       } catch (e) { }
     }
@@ -1082,10 +1081,10 @@
       <button onclick="openAccept(${JSON.stringify(l).replace(/"/g, '&quot;')})"
         class="w-full text-xs px-3 py-2 rounded transition-colors ${canPay ? 'bg-green-900 hover:bg-green-800 text-green-100' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}"
         ${!canPay ? 'disabled' : ''}>
-        ${canPay ? '🤝 Aceitar Troca' : `Faltam Grãos (você tem ${payable.length}/${l.asking_qty})`}
+        ${canPay ? '🤝 Aceitar Troca' : `Faltam Ervas (você tem ${payable.length}/${l.asking_qty})`}
       </button>
     ` : `
-      <div class="text-xs text-gray-400 mb-2">Serão enviados automaticamente ${l.asking_qty} grãos ${ar.label} que cumprem a regra.</div>
+      <div class="text-xs text-gray-400 mb-2">Serão enviados automaticamente ${l.asking_qty} Ervas ${ar.label} que cumprem a regra.</div>
       <div class="flex gap-2">
         <button onclick="confirmTrade('${l.id}')" class="flex-1 bg-green-900 hover:bg-green-800 text-xs px-3 py-2 rounded transition-colors">✓ Executar Troca</button>
         <button onclick="closeAccept()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-2 rounded transition-colors">✕</button>
@@ -1095,10 +1094,10 @@
     }
 
     async function syncLocalGrains(userId) {
-      try {
-        const local = await db.grains.where('owner').equals(userId).toArray();
-        for (const g of local) await sbUpsertGrain(g);
-      } catch (e) { }
+      const local = await db.grains.where('owner').equals(userId).toArray();
+      for (const g of local) {
+        sbUpsertGrain(g);
+      }
     }
 
     async function syncFromSupabase(userId) {
@@ -1116,7 +1115,7 @@
           }
         }
         if (restored > 0) {
-          toast(`✅ ${restored} Grão${restored !== 1 ? 's' : ''} restaurado${restored !== 1 ? 's' : ''} do servidor!`, 'success', 5000);
+          toast(`✅ ${restored} Erva${restored !== 1 ? 's' : ''} restaurado${restored !== 1 ? 's' : ''} do servidor!`, 'success', 5000);
         }
       } catch (e) { }
     }
@@ -1227,7 +1226,7 @@
     }
 
     // ═══════════════════════════════════════════════════════
-    // CARD DE GRÃO
+    // CARD DE Erva
     // ═══════════════════════════════════════════════════════
     function grainCard(g, compact = false) {
       const r = RARITY[g.rarity];
@@ -1413,7 +1412,7 @@
       ${transfers.length === 0 ? `<div class="text-gray-600 text-xs text-center py-3">Nenhuma transferência ainda</div>`
           : transfers.map(t => `<div class="flex items-center justify-between text-xs py-2 border-b border-gray-800">
           <span class="text-gray-500">${new Date(t.timestamp).toLocaleDateString('pt-BR')}</span>
-          <span class="font-mono text-gray-300">${t.grainId}</span>
+          <span class="font-mono text-gray-300">${t.grain_id || t.grainId || t.budId || t.bud_id}</span>
           <span class="${t.to_user === S.user.id ? 'text-green-400' : 'text-red-400'}">${t.to_user === S.user.id ? '📥 Recebido' : '📤 Enviado'}</span>
         </div>`).join('')}
     </div>
@@ -1436,7 +1435,7 @@
       const map = {};
       const emptyC = () => Object.fromEntries(ORDER.map(r => [r, 0]));
 
-      // Garante que todos que já logaram apareçam, mesmo com 0 grãos
+      // Garante que todos que já logaram apareçam, mesmo com 0 Ervas
       for (const u of sbUsers) {
         map[u.discord_id] = { name: u.username, counts: emptyC() };
       }
@@ -1494,7 +1493,7 @@
     async function pageMarket() {
       if (!S.user) return pageLogin();
       const { data: listings } = await sb.from('market_listings_v2').select('*').eq('status', 'active').order('created_at', { ascending: false });
-      const myGrains = await db.grains.where('owner').equals(S.user.id).toArray();
+      const myBuds = await db.grains.where('owner').equals(S.user.id).toArray();
       const myListings = (listings || []).filter(l => l.seller_id === S.user.id);
       const allListings = (listings || []).filter(l => l.seller_id !== S.user.id);
 
@@ -1569,7 +1568,7 @@
       <div class="text-4xl mb-3">🌿</div>
       Nenhuma oferta no momento
     </div>`: `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      ${allListings.map(l => listingCard(l, myGrains)).join('')}
+      ${allListings.map(l => listingCard(l, myBuds)).join('')}
     </div>`}
   </div>`;
     }
@@ -1579,7 +1578,7 @@
       if (!g) return `<div class="p-6 text-center">
     <div class="text-4xl mb-4">❓</div>
     <div class="text-gray-400 text-sm">${id} não encontrado</div>
-    <button onclick="go('inventory')" class="mt-4 text-cyan-400 hover:underline text-sm">← Voltar</button>
+    <button onclick="go('inventory')" class="mt-4 text-green-400 hover:underline text-sm">← Voltar</button>
   </div>`;
       const r = RARITY[g.rarity];
       const first = /[A-Z]0*1$/.test(g.id);
@@ -1669,7 +1668,7 @@
           <div id="forge-preview" class="text-xs text-gray-400 text-center py-2 bg-gray-900 rounded border border-gray-800 mb-2 min-h-[34px]"></div>
           
           <div class="text-[10px] text-gray-500 mb-1 flex justify-between">
-            <span>Seus Grãos:</span>
+            <span>Seus Buds:</span>
             <span id="forge-sel-count" class="font-bold text-orange-400">0 / 10 selecionados</span>
           </div>
           <div id="forge-item-list" class="flex-1 bg-gray-900 rounded border border-gray-800 p-2 overflow-y-auto max-h-40 flex flex-wrap gap-1 content-start scrollbar-thin">
@@ -1686,7 +1685,7 @@
       <div class="bg-gray-900 border border-purple-900/50 rounded-xl p-5 relative overflow-hidden flex flex-col">
         <div class="absolute -right-10 -top-10 text-9xl opacity-5">🎰</div>
         <h3 class="font-bold text-lg text-purple-400 mb-1 flex items-center gap-2">🎰 Caça-Níquel</h3>
-        <p class="text-xs text-gray-400 mb-4 h-8">Aposte 5 grãos específicos. Recompensas de 1 a 5 níveis de raridade acima (0.05% jackpot).</p>
+        <p class="text-xs text-gray-400 mb-4 h-8">Aposte 5 Ervas específicos. Recompensas de 1 a 5 níveis de raridade acima (0.05% jackpot).</p>
 
         <div class="bg-gray-950 rounded p-3 mb-2 flex-1 flex flex-col">
           <label class="text-[10px] text-gray-500 block mb-1">Selecionar Aposta (Custo: 5x)</label>
@@ -1758,7 +1757,7 @@
         const colorHex = isSel ? color : '#374151'; // gray-700
         const bgHex = isSel ? color+'30' : 'transparent';
         
-        return `<button onclick="window.toggleEvtGrain('${g.id}', '${type}')" id="evt-btn-${type}-${g.id}"
+        return `<button onclick="window.toggleEvtBud('${g.id}', '${type}')" id="evt-btn-${type}-${g.id}"
           class="px-2 py-1 border rounded text-[10px] font-mono transition-colors flex flex-col items-center hover:bg-gray-800"
           style="border-color:${colorHex}; background:${bgHex}; color:${isSel ? '#fff' : '#9ca3af'}">
           <span>${g.id}</span>
@@ -1767,19 +1766,19 @@
       }).join('');
     };
 
-    window.toggleEvtGrain = function(grainId, type) {
+    window.toggleEvtBud = function(budId, type) {
       const set = window.evtSelections[type];
       const max = type === 'forge' ? 10 : 5;
       
-      if(set.has(grainId)) {
-        set.delete(grainId);
+      if(set.has(budId)) {
+        set.delete(budId);
       } else {
         if(set.size >= max) return; // limit reached
-        set.add(grainId);
+        set.add(budId);
       }
       
       // Update specific button visually
-      const btn = document.getElementById(`evt-btn-${type}-${grainId}`);
+      const btn = document.getElementById(`evt-btn-${type}-${budId}`);
       if(btn) {
         const selVal = document.getElementById(`evt-${type}-sel`).value;
         const color = RARITY[selVal].color;
@@ -1802,7 +1801,7 @@
     };
 
     window.doEventAction = async function(type) {
-      if(S.mining) { toast('Não pode usar o evento enquanto minera!', 'error'); return; }
+      if(S.mining) { toast('Não pode usar o evento enquanto cultiva!', 'error'); return; }
       
       const isForge = type === 'forge';
       const selId = isForge ? 'evt-forge-sel' : 'evt-gacha-sel';
@@ -1909,7 +1908,7 @@
       let target = document.getElementById('tr-target')?.value?.trim();
       if (!target) target = 'ANYONE';
       const grain = document.getElementById('tr-grain')?.value;
-      if (!grain) { toast('Selecione um grão', 'error'); return }
+      if (!grain) { toast('Selecione um Erva', 'error'); return }
       if (target === S.user.id) { toast('Não pode transferir para si mesmo', 'error'); return }
       const pkg = await generateTransferPkg(grain, target);
       if (pkg) {
