@@ -262,6 +262,17 @@
     textarea {
       color-scheme: dark
     }
+
+    .glow-purple {
+      color: #a855f7 !important;
+      text-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7;
+      animation: purplePulse 2s infinite ease-in-out;
+    }
+
+    @keyframes purplePulse {
+      0%, 100% { text-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7; }
+      50% { text-shadow: 0 0 15px #d8b4fe, 0 0 30px #a855f7, 0 0 40px #a855f7; }
+    }
   </style>
 </head>
 
@@ -462,8 +473,30 @@
       onlineCount: 0,
       acceptingListing: null,
       showMenu: false,
-      notificationsEnabled: false
+      notificationsEnabled: false,
+      theme: 'default',
+      autoClicker: false,
+      isVip: false
     };
+
+    function t(key) {
+      const themes = {
+        default: { label: 'Grão', icon: '🌾', plural: 'Grãos' },
+        cannabis: { label: 'Grama', icon: '🌿', plural: 'Gramas' }
+      };
+      const theme = themes[S.theme || 'default'];
+      return themes.default[key] && theme[key] ? theme[key] : themes.default[key];
+    }
+
+    async function applyTheme(name) {
+      if (!['default', 'cannabis'].includes(name)) name = 'default';
+      S.theme = name;
+      await db.settings.put({ key: 'theme', value: name });
+      if (S.user) {
+        await sb.from('users').update({ theme: name }).eq('discord_id', S.user.id);
+      }
+      render();
+    }
 
     // ═══════════════════════════════════════════════════════
     // CRIPTO
@@ -659,6 +692,21 @@
       broadcastGrain(bud);
       sendDiscordWebhook(bud);
       toast(`🎉 ${id} cultivado! (${RARITY[rarity].label})`, 'success', 5000);
+      
+      // Auto-Clicker VIP
+      if (S.isVip && S.autoClicker) {
+        const nextReady = now + cooldownMs() + 2000; // 2s de margem
+        console.log(`Auto-Clicker: Próximo cultivo em ${new Date(nextReady).toLocaleTimeString()}`);
+        
+        const checkAuto = setInterval(() => {
+          if (!S.autoClicker || !S.isVip) { clearInterval(checkAuto); return; }
+          if (Date.now() >= nextReady) {
+            clearInterval(checkAuto);
+            if (!S.mining) startMining();
+          }
+        }, 5000);
+      }
+
       setTimeout(() => { S.miningProgress = 0; render() }, 2500);
       render();
     }
@@ -722,6 +770,14 @@
         S.user = user;
         await db.settings.put({ key: 'discordUser', value: user });
         history.replaceState(null, '', window.location.pathname);
+        
+        // Buscar dados extras do banco (VIP, Tema, etc)
+        const { data: profile } = await sb.from('users').select('is_vip, theme').eq('discord_id', user.id).single();
+        if (profile) {
+          S.isVip = !!profile.is_vip;
+          S.theme = profile.theme || 'default';
+        }
+
         toast(`Bem-vindo, ${user.global_name || user.username}!`, 'success');
         sbUpsertUser(user);
         updateNetworkSize();
@@ -1180,7 +1236,7 @@
         <svg class="w-4 h-4 text-indigo-500 transition-all" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.6.6a.2.2 0 0 0-.2.1 40.8 40.8 0 0 0-1.8 3.7 54 54 0 0 0-16.2 0A37.2 37.2 0 0 0 25.6.7a.2.2 0 0 0-.2-.1A58.4 58.4 0 0 0 10.9 4.9a.2.2 0 0 0-.1.1C1.6 18.7-.9 32.2.3 45.4a.2.2 0 0 0 .1.2 58.8 58.8 0 0 0 17.7 8.9.2.2 0 0 0 .2-.1 42 42 0 0 0 3.6-5.9.2.2 0 0 0-.1-.3 38.7 38.7 0 0 1-5.5-2.6.2.2 0 0 1 0-.4l1.1-.8a.2.2 0 0 1 .2 0c11.5 5.3 24 5.3 35.4 0a.2.2 0 0 1 .2 0l1.1.8a.2.2 0 0 1 0 .4 36.1 36.1 0 0 1-5.5 2.6.2.2 0 0 0-.1.3 47.1 47.1 0 0 0 3.6 5.9.2.2 0 0 0 .2.1 58.7 58.7 0 0 0 17.7-8.9.2.2 0 0 0 .1-.2c1.5-15.3-2.5-28.6-10.6-40.4a.2.2 0 0 0-.1-.1ZM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.4 3.2 6.4 7.1 0 3.9-2.9 7.1-6.4 7.1Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.5 3.2 6.5 7.1 0 3.9-2.9 7.1-6.5 7.1Z"/></svg>
       </button>
       ${u ? `<nav class="hidden sm:flex gap-1">
-        ${nb('inventory', '📦 Estoque')}${nb('mine', '🌱 Cultivar')}${nb('market', '🛒 Dispensário')}${nb('ranking', '🏆 Top Buds')}${nb('event', '🎲 Sorteio')}${nb('transfer', '🔄 Enviar')}
+        ${nb('inventory', `📦 ${t('plural')}`)}${nb('mine', `🌱 ${t('label')}`)}${nb('market', '🛒 Dispensário')}${nb('ranking', `🏆 Top ${t('plural')}`)}${nb('event', '🎲 Sorteio')}${nb('transfer', '🔄 Enviar')}
       </nav>`: ''}
     </div>
     <div class="flex items-center gap-2 text-sm shrink-0">
@@ -1205,7 +1261,13 @@
                 <span class="flex items-center gap-2"><span>🔔</span> Notificações</span>
                 <span class="text-[10px] ${S.notificationsEnabled ? 'text-green-400' : 'text-gray-500'} font-bold">${S.notificationsEnabled ? 'LIGADO' : 'DESLIGADO'}</span>
               </button>
+              <button onclick="abrirLojaVIP(); S.showMenu=false" class="w-full text-left px-4 py-3 text-xs hover:bg-gray-800 transition-colors border-b border-gray-800 flex items-center gap-2 text-purple-400 font-bold">
+                <span>💎</span> Plano VIP
+              </button>
             ` : ''}
+            <button onclick="applyTheme(S.theme === 'default' ? 'cannabis' : 'default'); S.showMenu=false" class="w-full text-left px-4 py-3 text-xs hover:bg-gray-800 transition-colors border-b border-gray-800 flex items-center gap-2">
+              <span>🎨</span> Mudar Tema (${S.theme === 'default' ? 'Cannabis' : 'Padrão'})
+            </button>
             <a href="mailto:facincanitech@gmail.com" class="w-full text-left px-4 py-3 text-xs hover:bg-gray-800 transition-colors border-b border-gray-800 flex items-center gap-2">
               <span>📧</span> Contato
             </a>
@@ -1226,7 +1288,7 @@
     }
 
     // ═══════════════════════════════════════════════════════
-    // CARD DE Erva
+    // CARD DE ITEM
     // ═══════════════════════════════════════════════════════
     function grainCard(g, compact = false) {
       const r = RARITY[g.rarity];
@@ -1273,8 +1335,8 @@
       </button>`).join('')}
     </div>
     ${sorted.length === 0 ? `<div class="text-center py-20 text-gray-600">
-      <div class="text-6xl mb-4">🌿</div>
-      <div class="text-lg mb-2">Nenhum bud aqui</div>
+      <div class="text-6xl mb-4">${t('icon')}</div>
+      <div class="text-lg mb-2">Nenhum ${t('label').toLowerCase()} aqui</div>
       <button onclick="go('mine')" class="text-green-400 hover:underline text-sm">Ir para o Cultivo →</button>
     </div>`: `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">${sorted.map(g => grainCard(g)).join('')}</div>`}
   </div>`;
@@ -1298,7 +1360,7 @@
 
       return `<div class="p-4 sm:p-6 max-w-2xl mx-auto">
     <h2 class="text-2xl font-bold mb-1">🌱 Cultivo</h2>
-    <p class="text-gray-400 text-sm mb-4">Prova de trabalho no browser para cultivar Buds únicos.</p>
+    <p class="text-gray-400 text-sm mb-4">Prova de trabalho no browser para cultivar ${t('plural').toLowerCase()} únicos.</p>
 
     <div class="bg-gray-900 rounded-lg p-4 mb-4 grid grid-cols-3 gap-3">
       <div class="text-gray-400 text-xs">Rede<br><span class="text-cyan-400 text-sm font-bold">${S.networkSize} nó${S.networkSize !== 1 ? 's' : ''}</span></div>
@@ -1333,7 +1395,7 @@
         <div class="h-full rounded-full transition-all" style="width:${Math.min(100, (S.lavoura.grains_count / S.lavoura.capacity) * 100).toFixed(2)}%;background:linear-gradient(90deg,#16a34a,#4ade80)"></div>
       </div>
       <div class="flex justify-between text-[10px] text-gray-500 mb-1">
-        <span>${Number(S.lavoura.grains_count).toLocaleString('pt-BR')} Buds cultivados</span>
+        <span>${Number(S.lavoura.grains_count).toLocaleString('pt-BR')} ${t('plural').toLowerCase()} cultivados</span>
         <span>${Number(S.lavoura.capacity).toLocaleString('pt-BR')} total</span>
       </div>
       ${S.myContrib > 0 ? `<div class="text-[10px] text-cyan-400">Sua contribuição: ${S.myContrib} Bud${S.myContrib !== 1 ? 's' : ''}</div>` : ''}
@@ -1423,9 +1485,9 @@
       let grains = [];
       let sbUsers = [];
       let source = 'local';
-      try {
+    try {
         const { data: gData, error: gErr } = await sb.from('grains').select('id,rarity,owner,discord_user,discord_id');
-        const { data: uData, error: uErr } = await sb.from('users').select('discord_id,username');
+        const { data: uData, error: uErr } = await sb.from('users').select('discord_id,username,is_vip,theme');
         if (!gErr && gData) grains = gData;
         if (!uErr && uData) { sbUsers = uData; source = 'global'; }
       } catch (e) { }
@@ -1437,13 +1499,13 @@
 
       // Garante que todos que já logaram apareçam, mesmo com 0 Ervas
       for (const u of sbUsers) {
-        map[u.discord_id] = { name: u.username, counts: emptyC() };
+        map[u.discord_id] = { name: u.username, counts: emptyC(), isVip: !!u.is_vip, theme: u.theme || 'default' };
       }
 
     for (const g of grains) {
         const uid = g.owner;
         if (!uid || uid.startsWith('__')) continue;
-        if (!map[uid]) map[uid] = { name: g.discord_user || uid, counts: emptyC() };
+        if (!map[uid]) map[uid] = { name: g.discord_user || uid, counts: emptyC(), isVip: false, theme: 'default' };
         if (g.rarity && map[uid].counts[g.rarity] !== undefined) map[uid].counts[g.rarity]++;
       }
 
@@ -1473,12 +1535,17 @@
             return `<tr class="border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors ${me ? 'bg-gray-800/30' : ''}">
                 <td class="px-4 py-2">
                   <span class="mr-1">${med}</span>
-                  <span class="${me ? 'text-cyan-400 font-bold' : 'text-gray-300'}">${d.name}</span>
+                  <span class="${me ? 'text-cyan-400 font-bold' : 'text-gray-300'} ${d.isVip ? 'glow-purple' : ''}">${d.name}</span>
                 </td>
                 ${ORDER.map(r => `<td class="text-center py-2 px-1 font-mono" style="color:${RARITY[r].color}">
                   ${d.counts[r] ? d.counts[r] : '<span class="text-gray-700">–</span>'}
                 </td>`).join('')}
-                <td class="text-right px-4 py-2 text-yellow-400 font-bold">${sc.toLocaleString()}</td>
+                <td class="text-right px-4 py-2 text-yellow-400 font-bold">
+                  ${sc.toLocaleString()} 
+                  <span class="text-[9px] text-gray-500 font-normal">
+                    ${d.theme === 'cannabis' ? 'Gramas' : 'Grãos'}
+                  </span>
+                </td>
               </tr>`;
           }).join('')}
         </tbody>
@@ -1619,10 +1686,18 @@
         <span class="text-gray-600">${new Date(t.timestamp).toLocaleDateString('pt-BR')}</span>
       </div>`).join('')}
     </div>`: ''}
-    ${mine ? `<button onclick="go('transfer');setTimeout(()=>{const s=document.getElementById('tr-grain');if(s)s.value='${g.id}'},80)"
-      class="w-full bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded text-sm transition-colors">
-      🔄 Enviar este Bud
-    </button>`: ''}
+    ${mine ? `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button onclick="go('transfer');setTimeout(()=>{const s=document.getElementById('tr-grain');if(s)s.value='${g.id}'},80)"
+          class="bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded text-sm transition-colors flex items-center justify-center gap-2">
+          🔄 Enviar este ${t('label')}
+        </button>
+        ${first ? `<button onclick="announceP2PSale('${g.id}')"
+          class="bg-indigo-900 hover:bg-indigo-800 px-4 py-3 rounded text-sm transition-colors flex items-center justify-center gap-2 border border-indigo-500/30">
+          💰 Anunciar Venda (R$)
+        </button>` : ''}
+      </div>
+    `: ''}
   </div>`;
     }
 
@@ -1937,12 +2012,99 @@
       if (ok) { const el = document.getElementById('tr-rcv'); if (el) el.value = '' }
     }
 
-    function copyPkg() {
-      const ta = document.getElementById('tr-pkg');
-      if (!ta) return;
-      navigator.clipboard.writeText(ta.value)
-        .then(() => toast('Copiado!', 'success', 1500))
-        .catch(() => { ta.select(); document.execCommand('copy'); toast('Copiado!', 'success', 1500) });
+    async function announceP2PSale(id) {
+      if (!S.isVip) { toast('Apenas usuários VIP podem anunciar no marketplace P2P!', 'warning'); return; }
+      const price = prompt('Digite o valor de venda em Reais (Ex: 50.00):');
+      if (!price || isNaN(price)) return;
+      
+      const { error } = await sb.from('market_listings').insert({
+        grain_id: id,
+        seller_id: S.user.id,
+        price: parseFloat(price),
+        status: 'pending'
+      });
+      
+      if (error) { toast('Erro ao anunciar: ' + error.message, 'error'); return; }
+      
+      await sb.from('grains').update({ lock_trade: true }).eq('id', id);
+      toast('✅ Anúncio criado com sucesso! O item foi travado para venda.', 'success');
+      go('inventory');
+    }
+
+    async function abrirLojaVIP() {
+      const modalId = 'vip-modal-' + Date.now();
+      const html = `
+        <div id="${modalId}" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm fade-in">
+          <div class="bg-gray-900 border border-purple-500/30 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-8 -top-8 text-8xl opacity-10 text-purple-500 rotate-12">💎</div>
+            <h3 class="text-2xl font-bold mb-2 text-purple-400 flex items-center gap-2">💎 Plano VIP</h3>
+            <p class="text-gray-400 text-sm mb-6">Desbloqueie o poder máximo do ErvaNet e brilhe no ranking!</p>
+            
+            <ul class="space-y-3 mb-8 text-sm">
+              <li class="flex items-center gap-2">✅ <span class="text-gray-200">Glow Roxo Vibrante no Ranking</span></li>
+              <li class="flex items-center gap-2">✅ <span class="text-gray-200">Auto-Clicker Inteligente</span></li>
+              <li class="flex items-center gap-2">✅ <span class="text-gray-200">Taxa de Marketplace reduzida</span></li>
+              <li class="flex items-center gap-2">✅ <span class="text-gray-200">Acesso ao Marketplace P2P</span></li>
+            </ul>
+            
+            <div class="bg-gray-800/50 rounded-xl p-4 mb-6 text-center border border-gray-700">
+              <div class="text-xs text-gray-500 mb-1">Assinatura Mensal</div>
+              <div class="text-3xl font-bold text-white">R$ 10,00</div>
+            </div>
+
+            <button id="btn-pay-vip" onclick="processarPagamentoVIP('${modalId}')" class="w-full bg-purple-600 hover:bg-purple-500 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-purple-500/20 active:scale-95">
+              Assinar VIP via Pix
+            </button>
+            
+            <button onclick="document.getElementById('${modalId}').remove()" class="w-full mt-4 text-xs text-gray-500 hover:text-gray-400 transition-colors">Talvez depois</button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    async function processarPagamentoVIP(modalId) {
+      const btn = document.getElementById('btn-pay-vip');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin inline-block mr-2">⏳</span> Gerando Pix...';
+      
+      try {
+        const { data, error } = await sb.functions.invoke('gerar-pix-vip', {
+          body: { userId: S.user.id, plano: 'mensal_10' }
+        });
+        
+        if (error) throw error;
+
+        const modal = document.getElementById(modalId);
+        modal.innerHTML = `
+          <div class="bg-gray-900 border border-purple-500/30 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
+            <h3 class="text-xl font-bold mb-4 text-center">Escaneie o QR Code</h3>
+            <img src="data:image/png;base64,${data.qrcode_base64}" class="w-full rounded-lg mb-4 border-4 border-white">
+            <div class="text-xs text-gray-500 mb-2">Código Copia e Cola:</div>
+            <textarea readonly class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-[10px] font-mono mb-4 h-20 resize-none">${data.copia_e_cola}</textarea>
+            <button onclick="navigator.clipboard.writeText('${data.copia_e_cola}');toast('Copiado!','success')" class="w-full bg-gray-700 py-2 rounded text-xs mb-4">📋 Copiar Código</button>
+            <div class="text-center text-[10px] text-gray-500 animate-pulse">Aguardando confirmação do pagamento...</div>
+          </div>
+        `;
+
+        // Listener de Realtime para ativação instantânea
+        const channel = sb.channel('public:users')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `discord_id=eq.${S.user.id}` }, payload => {
+            if (payload.new.is_vip) {
+              S.isVip = true;
+              toast('🎉 VIP ATIVADO COM SUCESSO!', 'success', 8000);
+              spawnParticles('niobium');
+              modal.remove();
+              render();
+            }
+          })
+          .subscribe();
+
+      } catch (e) {
+        toast('Erro ao gerar Pix: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = 'Assinar VIP via Pix';
+      }
     }
 
     // ═══════════════════════════════════════════════════════
