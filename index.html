@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> GrãoNet – Mineração de Grãos</title>
+  <title> ErvaNet – Cultivo de Buds</title>
   <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌾</text></svg>">
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -158,7 +158,7 @@
       }
     }
 
-    .mining-active {
+    .cultivo-active {
       animation: miningPulse 0.6s ease-in-out infinite
     }
 
@@ -378,8 +378,8 @@
     // ═══════════════════════════════════════════════════════
     // SUPABASE
     // ═══════════════════════════════════════════════════════
-    const SB_URL = 'https://smrmnndnnpycmezauymk.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtcm1ubmRubnB5Y21lemF1eW1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDI1NDUsImV4cCI6MjA5MjI3ODU0NX0.V5JcuUVTrbUFiDf71B1FMC2aOr1SXK029pAKex_1A88';
+    const SB_URL = 'https://fdutkzsarztysqqrgcmr.supabase.co';
+    const SB_KEY = 'sb_publishable_nhDkK3k8UXx2FYsPt-3Qbw_hCZqRH3K';
     const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
     async function sbUpsertGrain(grain) {
@@ -414,15 +414,15 @@
     // RARIDADES
     // ═══════════════════════════════════════════════════════
     const RARITY = {
-      brass: { key: 'brass', label: 'Latão', emoji: '🔶', color: '#CD7F32', zeros: 1, prefix: 'L' },
-      copper: { key: 'copper', label: 'Cobre', emoji: '🟤', color: '#B87333', zeros: 2, prefix: 'C' },
-      silver: { key: 'silver', label: 'Prata', emoji: '⚪', color: '#C0C0C0', zeros: 3, prefix: 'S' },
-      gold: { key: 'gold', label: 'Ouro', emoji: '🟡', color: '#FFD700', zeros: 4, prefix: 'G' },
-      diamond: { key: 'diamond', label: 'Diamante', emoji: '💎', color: '#00FFFF', zeros: 5, prefix: 'D' },
-      uranium: { key: 'uranium', label: 'Urânio', emoji: '☢️', color: '#39FF14', zeros: 6, prefix: 'U' },
-      opal: { key: 'opal', label: 'Opala', emoji: '🔮', color: '#FF69B4', zeros: 7, prefix: 'O' },
-      bismuth: { key: 'bismuth', label: 'Bismuto', emoji: '🌈', color: '#E8B4F8', zeros: 8, prefix: 'B' },
-      niobium: { key: 'niobium', label: 'Nióbio', emoji: '⚡', color: '#C084FC', zeros: 9, prefix: 'N' }
+      brass: { key: 'brass', label: 'Soltinho', emoji: '🌿', color: '#CD7F32', zeros: 1, prefix: 'S' },
+      copper: { key: 'copper', label: 'Pren', emoji: '📦', color: '#B87333', zeros: 2, prefix: 'P' },
+      silver: { key: 'silver', label: 'Skunk', emoji: '🦨', color: '#C0C0C0', zeros: 3, prefix: 'K' },
+      gold: { key: 'gold', label: 'Kush', emoji: '🔥', color: '#FFD700', zeros: 4, prefix: 'G' },
+      diamond: { key: 'diamond', label: 'Hash', emoji: '🍯', color: '#00FFFF', zeros: 5, prefix: 'H' },
+      uranium: { key: 'uranium', label: 'Rosin', emoji: '🧪', color: '#39FF14', zeros: 6, prefix: 'R' },
+      opal: { key: 'opal', label: 'Ice', emoji: '❄️', color: '#FF69B4', zeros: 7, prefix: 'I' },
+      bismuth: { key: 'bismuth', label: 'Cali', emoji: '🇺🇸', color: '#E8B4F8', zeros: 8, prefix: 'C' },
+      niobium: { key: 'niobium', label: 'Moonrock', emoji: '🌑', color: '#C084FC', zeros: 9, prefix: 'M' }
     };
     const ORDER = ['niobium', 'bismuth', 'opal', 'uranium', 'diamond', 'gold', 'silver', 'copper', 'brass'];
 
@@ -500,14 +500,14 @@
         const { data, error } = await sb.rpc('increment_counter', { r: rarity });
         if (!error && data) {
           await db.counters.put({ rarity, count: data });
-          return `grão#${pfx}${String(data).padStart(2, '0')}`;
+          return `bud#${pfx}${String(data).padStart(2, '0')}`;
         }
       } catch (e) { }
       // fallback offline
       const rec = await db.counters.get(rarity);
       const n = (rec?.count || 0) + 1;
       await db.counters.put({ rarity, count: n });
-      return `grão#${pfx}${String(n).padStart(2, '0')}`;
+      return `bud#${pfx}${String(n).padStart(2, '0')}`;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -521,7 +521,7 @@
     }
 
     // ═══════════════════════════════════════════════════════
-    // MINERAÇÃO
+    // CULTIVO
     // ═══════════════════════════════════════════════════════
     async function startMining() {
       if (!S.user) { AudioEngine.play('error'); toast('Faça login primeiro!', 'error'); return }
@@ -604,15 +604,15 @@
       if (!isRare && !isFirst) return;
 
       const embed = {
-        title: isFirst ? `⭐ GRÃO LENDÁRIO DESCOBERTO! (#01)` : `🔥 NOVO DROP RARO!`,
+        title: isFirst ? `⭐ BUD LENDÁRIO CULTIVADO! (#01)` : `🔥 NOVO DROP RARO!`,
         description: `**${g.discord_user}** acaba de encontrar um item valioso!`,
         color: parseInt(r.color.replace('#', ''), 16),
         fields: [
           { name: 'Item', value: `${r.emoji} **${g.id}** (${r.label})`, inline: true },
           { name: 'Raridade (Nonce)', value: `\`${(g.nonce || 0).toLocaleString()}\``, inline: true },
-          { name: 'ID do Minerador', value: `\`${g.discord_id}\``, inline: false }
+          { name: 'ID do Cultivador', value: `\`${g.discord_id}\``, inline: false }
         ],
-        footer: { text: 'GrãoNet • Sistema de Mineração P2P' },
+        footer: { text: 'ErvaNet • Sistema de Cultivo P2P' },
         timestamp: new Date().toISOString()
       };
 
@@ -650,7 +650,7 @@
       spawnParticles(rarity);
       broadcastGrain(grain);
       sendDiscordWebhook(grain);
-      toast(`🎉 ${id} minerado! (${RARITY[rarity].label})`, 'success', 5000);
+      toast(`🎉 ${id} cultivado! (${RARITY[rarity].label})`, 'success', 5000);
       setTimeout(() => { S.miningProgress = 0; render() }, 2500);
       render();
     }
@@ -937,9 +937,9 @@
             gained.push(`${RARITY[rarity].emoji} ${id}`);
           }
           spawnParticles(rewards[rewards.length - 1]);
-          toast(`🌾 Lavoura #${lavNum} colhida! Você foi o top! +${gained.join(' · ')}`, 'success', 8000);
+          toast(`🌿 Estufa #${lavNum} colhida! Você foi o top! +${gained.join(' · ')}`, 'success', 8000);
         } else {
-          toast(`🌾 Lavoura #${lavNum} colhida! Top contribuidor: ${data.top_name}`, 'info', 5000);
+          toast(`🌿 Estufa #${lavNum} colhida! Top contribuidor: ${data.top_name}`, 'info', 5000);
         }
         await loadLavoura();
       } catch (e) { }
@@ -1176,12 +1176,12 @@
   <header class="sticky top-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between gap-4">
     <div class="flex items-center gap-3 min-w-0">
       <button onclick="window.open('https://discord.gg/j8mV9H7fWP', '_blank')" class="group flex items-center gap-2 text-xl font-bold whitespace-nowrap transition-all" style="color:#00FFFF">
-        <span class="group-hover:scale-110 transition-transform">🌾</span>
-        <span class="group-hover:text-indigo-400 transition-colors">Grão Discord</span>
+        <span class="group-hover:scale-110 transition-transform">🌿</span>
+        <span class="group-hover:text-green-400 transition-colors">ErvaNet Discord</span>
         <svg class="w-4 h-4 text-indigo-500 transition-all" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.6.6a.2.2 0 0 0-.2.1 40.8 40.8 0 0 0-1.8 3.7 54 54 0 0 0-16.2 0A37.2 37.2 0 0 0 25.6.7a.2.2 0 0 0-.2-.1A58.4 58.4 0 0 0 10.9 4.9a.2.2 0 0 0-.1.1C1.6 18.7-.9 32.2.3 45.4a.2.2 0 0 0 .1.2 58.8 58.8 0 0 0 17.7 8.9.2.2 0 0 0 .2-.1 42 42 0 0 0 3.6-5.9.2.2 0 0 0-.1-.3 38.7 38.7 0 0 1-5.5-2.6.2.2 0 0 1 0-.4l1.1-.8a.2.2 0 0 1 .2 0c11.5 5.3 24 5.3 35.4 0a.2.2 0 0 1 .2 0l1.1.8a.2.2 0 0 1 0 .4 36.1 36.1 0 0 1-5.5 2.6.2.2 0 0 0-.1.3 47.1 47.1 0 0 0 3.6 5.9.2.2 0 0 0 .2.1 58.7 58.7 0 0 0 17.7-8.9.2.2 0 0 0 .1-.2c1.5-15.3-2.5-28.6-10.6-40.4a.2.2 0 0 0-.1-.1ZM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.4 3.2 6.4 7.1 0 3.9-2.9 7.1-6.4 7.1Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.5 3.2 6.5 7.1 0 3.9-2.9 7.1-6.5 7.1Z"/></svg>
       </button>
       ${u ? `<nav class="hidden sm:flex gap-1">
-        ${nb('inventory', '📦 Inventário')}${nb('mine', '⛏️ Minerar')}${nb('market', '🛒 Mercado')}${nb('ranking', '🏆 Ranking')}${nb('event', '🎲 Evento')}${nb('transfer', '🔄 Transferir')}
+        ${nb('inventory', '📦 Estoque')}${nb('mine', '🌱 Cultivar')}${nb('market', '🛒 Dispensário')}${nb('ranking', '🏆 Top Buds')}${nb('event', '🎲 Sorteio')}${nb('transfer', '🔄 Enviar')}
       </nav>`: ''}
     </div>
     <div class="flex items-center gap-2 text-sm shrink-0">
@@ -1274,9 +1274,9 @@
       </button>`).join('')}
     </div>
     ${sorted.length === 0 ? `<div class="text-center py-20 text-gray-600">
-      <div class="text-6xl mb-4">🌾</div>
-      <div class="text-lg mb-2">Nenhum grão aqui</div>
-      <button onclick="go('mine')" class="text-cyan-400 hover:underline text-sm">Ir para Mineração →</button>
+      <div class="text-6xl mb-4">🌿</div>
+      <div class="text-lg mb-2">Nenhum bud aqui</div>
+      <button onclick="go('mine')" class="text-green-400 hover:underline text-sm">Ir para o Cultivo →</button>
     </div>`: `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">${sorted.map(g => grainCard(g)).join('')}</div>`}
   </div>`;
     }
@@ -1298,8 +1298,8 @@
       const sorted = [...myGrains].sort((a, b) => ORDER.indexOf(a.rarity) - ORDER.indexOf(b.rarity));
 
       return `<div class="p-4 sm:p-6 max-w-2xl mx-auto">
-    <h2 class="text-2xl font-bold mb-1">⛏️ Mineração</h2>
-    <p class="text-gray-400 text-sm mb-4">Prova de trabalho no browser para minerar Grãos únicos.</p>
+    <h2 class="text-2xl font-bold mb-1">🌱 Cultivo</h2>
+    <p class="text-gray-400 text-sm mb-4">Prova de trabalho no browser para cultivar Buds únicos.</p>
 
     <div class="bg-gray-900 rounded-lg p-4 mb-4 grid grid-cols-3 gap-3">
       <div class="text-gray-400 text-xs">Rede<br><span class="text-cyan-400 text-sm font-bold">${S.networkSize} nó${S.networkSize !== 1 ? 's' : ''}</span></div>
@@ -1327,21 +1327,21 @@
 
     ${S.lavoura ? `<div class="bg-gray-900 rounded-lg p-4 mb-4 border border-green-900/40">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-[10px] text-green-400 font-bold uppercase tracking-wide">🌾 Lavoura #${S.lavoura.number} — Ativa</div>
+        <div class="text-[10px] text-green-400 font-bold uppercase tracking-wide">🌿 Estufa #${S.lavoura.number} — Ativa</div>
         <div class="text-[10px] text-gray-400">${lavouraRewards(S.lavoura.number).map(r => RARITY[r].emoji).join(' ')}</div>
       </div>
       <div class="bg-gray-800 rounded-full h-3 overflow-hidden mb-2">
         <div class="h-full rounded-full transition-all" style="width:${Math.min(100, (S.lavoura.grains_count / S.lavoura.capacity) * 100).toFixed(2)}%;background:linear-gradient(90deg,#16a34a,#4ade80)"></div>
       </div>
       <div class="flex justify-between text-[10px] text-gray-500 mb-1">
-        <span>${Number(S.lavoura.grains_count).toLocaleString('pt-BR')} Grãos minerados</span>
+        <span>${Number(S.lavoura.grains_count).toLocaleString('pt-BR')} Buds cultivados</span>
         <span>${Number(S.lavoura.capacity).toLocaleString('pt-BR')} total</span>
       </div>
-      ${S.myContrib > 0 ? `<div class="text-[10px] text-cyan-400">Sua contribuição: ${S.myContrib} Grão${S.myContrib !== 1 ? 's' : ''}</div>` : ''}
+      ${S.myContrib > 0 ? `<div class="text-[10px] text-cyan-400">Sua contribuição: ${S.myContrib} Bud${S.myContrib !== 1 ? 's' : ''}</div>` : ''}
     </div>`: ''}
 
     ${sorted.length > 0 ? `<div class="bg-gray-900 rounded-lg p-4 mb-4">
-      <div class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wide">Seus Grãos (${sorted.length})</div>
+      <div class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wide">Seus Buds (${sorted.length})</div>
       <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto scrollbar-thin">
         ${sorted.map(g => `<span onclick="go('grain',{id:'${g.id}'})" title="${new Date(g.generated_at).toLocaleDateString('pt-BR')}"
           class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-mono border hover:brightness-125 transition-all"
@@ -1354,20 +1354,20 @@
     ${(cd && !S.mining) ? `<div class="bg-gray-900 border border-yellow-800/50 rounded-lg p-5 text-center">
       <div class="text-3xl mb-2">⏳</div>
       <div class="text-yellow-400 font-bold mb-1">Cooldown Ativo</div>
-      <div class="text-gray-400 text-sm">Próxima mineração em: <span id="cd-timer" class="font-mono text-white">${cd}</span></div>
+      <div class="text-gray-400 text-sm">Próximo cultivo em: <span id="cd-timer" class="font-mono text-white">${cd}</span></div>
       <div class="text-[10px] text-gray-600 mt-2">Cooldown base: 5min · +1min por nó na rede</div>
     </div>`: `<div class="bg-gray-900 rounded-lg p-6 text-center">
-      ${S.mining ? `<div class="text-5xl mb-3 mining-active">⛏️</div>
-        <div class="font-bold mb-4">Minerando...</div>
+      ${S.mining ? `<div class="text-5xl mb-3 cultivo-active">🌿</div>
+        <div class="font-bold mb-4">Cultivando...</div>
         <div class="bg-gray-800 rounded-full h-3 mb-3 overflow-hidden">
-          <div class="h-full rounded-full progress-bar" style="width:${S.miningProgress}%;background:linear-gradient(90deg,#00FFFF,#0080FF)"></div>
+          <div class="h-full rounded-full progress-bar" style="width:${S.miningProgress}%;background:linear-gradient(90deg,#22c55e,#4ade80)"></div>
         </div>
-        <div class="text-sm text-gray-400 mb-5">Hashrate: <span class="text-cyan-400">${S.hashrate.toLocaleString()} H/s</span></div>
+        <div class="text-sm text-gray-400 mb-5">Hashrate: <span class="text-green-400">${S.hashrate.toLocaleString()} H/s</span></div>
         <button onclick="cancelMining()" class="bg-red-900 hover:bg-red-800 px-6 py-2 rounded text-sm transition-colors">✕ Cancelar</button>
-      `: `<div class="text-6xl mb-4">🌾</div>
-        <p class="text-gray-400 text-sm mb-6">Mais zeros no hash = Grão mais raro!<br>Cooldown: ${cdMins} minuto${cdMins !== 1 ? 's' : ''} após minerar.</p>
-        <button onclick="startMining()" class="bg-cyan-700 hover:bg-cyan-600 px-8 py-3 rounded-lg font-bold text-lg transition-colors">
-          ⛏️ Começar Mineração
+      `: `<div class="text-6xl mb-4">🌿</div>
+        <p class="text-gray-400 text-sm mb-6">Mais zeros no hash = Bud mais raro!<br>Cooldown: ${cdMins} minuto${cdMins !== 1 ? 's' : ''} após cultivar.</p>
+        <button onclick="startMining()" class="bg-green-700 hover:bg-green-600 px-8 py-3 rounded-lg font-bold text-lg transition-colors">
+          🌱 Começar Cultivo
         </button>`}
     </div>`}
   </div>`;
@@ -1379,16 +1379,16 @@
       const transfers = await db.transfers.where('from_user').equals(S.user.id).or('to_user').equals(S.user.id)
         .reverse().limit(15).toArray();
       return `<div class="p-4 sm:p-6 max-w-2xl mx-auto">
-    <h2 class="text-2xl font-bold mb-1">🔄 Transferência P2P</h2>
-    <p class="text-gray-400 text-sm mb-5">Troque Grãos com outros usuários via pacotes JSON assinados.</p>
+    <h2 class="text-2xl font-bold mb-1">🔄 Enviar Bud</h2>
+    <p class="text-gray-400 text-sm mb-5">Troque Buds com outros usuários via pacotes JSON assinados.</p>
     <div class="grid gap-4 md:grid-cols-2 mb-6">
       <div class="bg-gray-900 rounded-lg p-4">
-        <h3 class="font-bold mb-3 text-cyan-400 text-sm">📤 Enviar / Resgatar Grão</h3>
+        <h3 class="font-bold mb-3 text-green-400 text-sm">📤 Enviar / Criar Código</h3>
         <label class="text-xs text-gray-400 block mb-1">Destinatário (Deixe em branco para Criar Código de Resgate Público)</label>
         <input type="text" id="tr-target" placeholder="ID do Discord do Amigo ou vazio..."
           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none mb-3"
           value="${S.transferTarget}" oninput="S.transferTarget=this.value">
-        <label class="text-xs text-gray-400 block mb-1">Selecionar Grão</label>
+        <label class="text-xs text-gray-400 block mb-1">Selecionar Bud</label>
         <select id="tr-grain" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none mb-3">
           <option value="">-- Escolha --</option>
           ${my.map(g => `<option value="${g.id}">${RARITY[g.rarity].emoji} ${g.id} — ${RARITY[g.rarity].label}</option>`).join('')}
@@ -1401,8 +1401,8 @@
         </div>
       </div>
       <div class="bg-gray-900 rounded-lg p-4">
-        <h3 class="font-bold mb-3 text-green-400 text-sm">📥 Receber Grão</h3>
-        <label class="text-xs text-gray-400 block mb-1">Cole o pacote de transferência:</label>
+        <h3 class="font-bold mb-3 text-green-400 text-sm">📥 Receber Bud</h3>
+        <label class="text-xs text-gray-400 block mb-1">Cole o pacote de envio:</label>
         <textarea id="tr-rcv" rows="10" placeholder='{"type":"graonet_transfer",...}'
           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs font-mono resize-none focus:border-green-500 focus:outline-none mb-3"></textarea>
         <button onclick="doReceive()" class="w-full bg-green-900 hover:bg-green-800 px-4 py-2 rounded text-sm font-medium transition-colors">✓ Confirmar Recebimento</button>
@@ -1441,7 +1441,7 @@
         map[u.discord_id] = { name: u.username, counts: emptyC() };
       }
 
-      for (const g of grains) {
+    for (const g of grains) {
         const uid = g.owner;
         if (!uid || uid.startsWith('__')) continue;
         if (!map[uid]) map[uid] = { name: g.discord_user || uid, counts: emptyC() };
@@ -1453,9 +1453,9 @@
       const users = Object.entries(map).sort((a, b) => score(b[1]) - score(a[1]));
 
       return `<div class="p-4 sm:p-6 max-w-5xl mx-auto">
-    <h2 class="text-2xl font-bold mb-1">🏆 Ranking</h2>
-    <p class="text-gray-400 text-sm mb-2">Top holders de toda a rede GrãoNet.</p>
-    <div class="text-[10px] text-gray-600 mb-4">${source === 'global' ? `✅ Dados globais · ${grains.length} grão(s) · ${users.length} jogador(es)` : '⚠️ Dados locais (offline)'}</div>
+    <h2 class="text-2xl font-bold mb-1">🏆 Top Buds</h2>
+    <p class="text-gray-400 text-sm mb-2">Top cultivadores de toda a rede ErvaNet.</p>
+    <div class="text-[10px] text-gray-600 mb-4">${source === 'global' ? `✅ Dados globais · ${grains.length} bud(s) · ${users.length} cultivador(es)` : '⚠️ Dados locais (offline)'}</div>
     <div class="bg-gray-900 rounded-lg overflow-x-auto scrollbar-thin">
       <table class="w-full text-xs min-w-[700px]">
         <thead>
@@ -1466,7 +1466,7 @@
           </tr>
         </thead>
         <tbody>
-          ${users.length === 0 ? `<tr><td colspan="${ORDER.length + 2}" class="text-center py-8 text-gray-600">Nenhum grão minerado ainda</td></tr>`
+          ${users.length === 0 ? `<tr><td colspan="${ORDER.length + 2}" class="text-center py-8 text-gray-600">Nenhum bud cultivado ainda</td></tr>`
           : users.slice(0, 20).map(([uid, d], i) => {
             const sc = score(d);
             const me = uid === S.user?.id;
@@ -1499,8 +1499,8 @@
       const allListings = (listings || []).filter(l => l.seller_id !== S.user.id);
 
       return `<div class="p-4 sm:p-6 max-w-4xl mx-auto">
-    <h2 class="text-2xl font-bold mb-1">🛒 Mercado</h2>
-    <p class="text-gray-400 text-sm mb-5">Troque Grãos baseados em raridade e quantidade com a rede.</p>
+    <h2 class="text-2xl font-bold mb-1">🛒 Dispensário</h2>
+    <p class="text-gray-400 text-sm mb-5">Troque Buds baseados em raridade e quantidade com a rede.</p>
 
     <div class="bg-gray-900 rounded-lg p-4 mb-6">
       <h3 class="font-bold text-sm mb-3 text-cyan-400">+ Criar Oferta</h3>
@@ -1566,7 +1566,7 @@
 
     <h3 class="font-bold text-sm mb-3 text-gray-300">Ofertas Disponíveis (${allListings.length})</h3>
     ${allListings.length === 0 ? `<div class="text-center py-12 text-gray-600 text-sm">
-      <div class="text-4xl mb-3">🌾</div>
+      <div class="text-4xl mb-3">🌿</div>
       Nenhuma oferta no momento
     </div>`: `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       ${allListings.map(l => listingCard(l, myGrains)).join('')}
@@ -1601,7 +1601,7 @@
       <div class="grid grid-cols-2 gap-3 mt-3 text-sm">
         <div><div class="text-gray-500 text-xs">Gerado em</div><div>${new Date(g.generated_at).toLocaleString('pt-BR')}</div></div>
         <div><div class="text-gray-500 text-xs">Tamanho da rede</div><div>${g.network_size_at_generation} nós</div></div>
-        <div class="col-span-2"><div class="text-gray-500 text-xs">Minerado por</div><div class="font-mono text-sm">${g.discord_user}</div></div>
+        <div class="col-span-2"><div class="text-gray-500 text-xs">Cultivado por</div><div class="font-mono text-sm">${g.discord_user}</div></div>
       </div>
     </div>
     <div class="bg-gray-900 rounded-lg p-4 mb-4">
@@ -1622,7 +1622,7 @@
     </div>`: ''}
     ${mine ? `<button onclick="go('transfer');setTimeout(()=>{const s=document.getElementById('tr-grain');if(s)s.value='${g.id}'},80)"
       class="w-full bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded text-sm transition-colors">
-      🔄 Transferir este Grão
+      🔄 Enviar este Bud
     </button>`: ''}
   </div>`;
     }
@@ -1647,10 +1647,10 @@
 
       return `<div class="p-4 sm:p-6 max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-2">
-      <h2 class="text-2xl font-bold">🎲 Evento Oficial</h2>
+      <h2 class="text-2xl font-bold">🎲 Sorteio Oficial</h2>
       <span class="px-2 py-1 bg-red-900 text-red-200 text-[10px] font-bold rounded animate-pulse">TEMPO LIMITADO</span>
     </div>
-    <p class="text-gray-400 text-sm mb-6">Queime seus grãos para forjar minérios mais raros ou tentar a sorte grande no Caça-Níquel. <br><span class="text-xs text-yellow-500">Aviso: Grãos gastos são destruídos permanentemente. A raridade Nióbio não pode ser forjada. Escolha sabiamente quais grãos sacrificar!</span></p>
+    <p class="text-gray-400 text-sm mb-6">Queime seus buds para forjar espécies mais raras ou tentar a sorte grande no Caça-Níquel. <br><span class="text-xs text-yellow-500">Aviso: Buds gastos são destruídos permanentemente. A espécie Moonrock não pode ser forjada. Escolha sabiamente quais buds sacrificar!</span></p>
 
     <div class="grid md:grid-cols-2 gap-6">
       
@@ -1658,7 +1658,7 @@
       <div class="bg-gray-900 border border-orange-900/50 rounded-xl p-5 relative overflow-hidden flex flex-col">
         <div class="absolute -right-10 -top-10 text-9xl opacity-5">🔥</div>
         <h3 class="font-bold text-lg text-orange-400 mb-1 flex items-center gap-2">🔥 A Forja</h3>
-        <p class="text-xs text-gray-400 mb-4 h-8">Selecione e queime 10 grãos iguais. 50% de chance de forjar 1 da raridade superior.</p>
+        <p class="text-xs text-gray-400 mb-4 h-8">Selecione e queime 10 buds iguais. 50% de chance de forjar 1 da espécie superior.</p>
         
         <div class="bg-gray-950 rounded p-3 mb-2 flex-1 flex flex-col">
           <label class="text-[10px] text-gray-500 block mb-1">Selecionar Material (Custo: 10x)</label>
@@ -1699,7 +1699,7 @@
           </div>
 
           <div class="text-[10px] text-gray-500 mb-1 flex justify-between">
-            <span>Seus Grãos:</span>
+            <span>Seus Buds:</span>
             <span id="gacha-sel-count" class="font-bold text-purple-400">0 / 5 selecionados</span>
           </div>
           <div id="gacha-item-list" class="flex-1 bg-gray-900 rounded border border-gray-800 p-2 overflow-y-auto max-h-40 flex flex-wrap gap-1 content-start scrollbar-thin">
@@ -1870,7 +1870,7 @@
         spawnParticles(winRarity);
         toast(`🎉 SUCESSO! Você obteve 1x ${RARITY[winRarity].emoji} ${RARITY[winRarity].label}!`, 'success', 6000);
       } else {
-        toast(`💥 FALHOU! Seus grãos viraram cinzas...`, 'error', 4000);
+        toast(`💥 FALHOU! Seus buds viraram cinzas...`, 'error', 4000);
       }
 
       window.evtSelections[type].clear();
@@ -1880,22 +1880,22 @@
     function pageLogin() {
       return `<div class="min-h-screen flex items-center justify-center p-6">
     <div class="text-center max-w-md fade-in">
-      <div class="text-8xl mb-5">🌾</div>
-      <h1 class="text-4xl font-bold mb-2" style="color:#00FFFF">GrãoNet</h1>
-      <p class="text-gray-400 mb-1">Sistema de mineração de itens colecionáveis</p>
-      <p class="text-gray-600 text-sm mb-7">Minere • Colecione • Transfira</p>
+      <div class="text-8xl mb-5">🌿</div>
+      <h1 class="text-4xl font-bold mb-2" style="color:#22c55e">ErvaNet</h1>
+      <p class="text-gray-400 mb-1">Sistema de cultivo de buds colecionáveis</p>
+      <p class="text-gray-600 text-sm mb-7">Cultive • Colecione • Envie</p>
       <div class="flex justify-center gap-4 mb-8">
         ${ORDER.map(r => `<div class="text-center"><div class="text-3xl">${RARITY[r].emoji}</div><div class="text-[10px] mt-1" style="color:${RARITY[r].color}">${RARITY[r].label}</div></div>`).join('')}
       </div>
       <div class="inline-flex items-center gap-2 px-3 py-1 bg-gray-900/50 rounded-full border border-gray-800 text-xs text-gray-400 mb-8">
         <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-        ${S.onlineCount} Jogadores Online
+        ${S.onlineCount} Cultivadores Online
       </div>
-      <button onclick="loginWithDiscord()" class="flex items-center gap-3 mx-auto bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg">
+      <button onclick="loginWithDiscord()" class="flex items-center gap-3 mx-auto bg-green-600 hover:bg-green-700 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg">
         <svg width="22" height="22" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.6.6a.2.2 0 0 0-.2.1 40.8 40.8 0 0 0-1.8 3.7 54 54 0 0 0-16.2 0A37.2 37.2 0 0 0 25.6.7a.2.2 0 0 0-.2-.1A58.4 58.4 0 0 0 10.9 4.9a.2.2 0 0 0-.1.1C1.6 18.7-.9 32.2.3 45.4a.2.2 0 0 0 .1.2 58.8 58.8 0 0 0 17.7 8.9.2.2 0 0 0 .2-.1 42 42 0 0 0 3.6-5.9.2.2 0 0 0-.1-.3 38.7 38.7 0 0 1-5.5-2.6.2.2 0 0 1 0-.4l1.1-.8a.2.2 0 0 1 .2 0c11.5 5.3 24 5.3 35.4 0a.2.2 0 0 1 .2 0l1.1.8a.2.2 0 0 1 0 .4 36.1 36.1 0 0 1-5.5 2.6.2.2 0 0 0-.1.3 47.1 47.1 0 0 0 3.6 5.9.2.2 0 0 0 .2.1 58.7 58.7 0 0 0 17.7-8.9.2.2 0 0 0 .1-.2c1.5-15.3-2.5-28.6-10.6-40.4a.2.2 0 0 0-.1-.1ZM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.4 3.2 6.4 7.1 0 3.9-2.9 7.1-6.4 7.1Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.1s2.8-7.1 6.4-7.1c3.6 0 6.5 3.2 6.5 7.1 0 3.9-2.9 7.1-6.5 7.1Z"/></svg>
         Entrar com Discord
       </button>
-      <p class="text-gray-600 text-xs mt-6">Grãos salvos em núvem.<br>Sem cadastro, sem senha, sem email.</p>
+      <p class="text-gray-600 text-xs mt-6">Buds salvos em nuvem.<br>Sem cadastro, sem senha, sem email.</p>
     </div>
   </div>`;
     }
